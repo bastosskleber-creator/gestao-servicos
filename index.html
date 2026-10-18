@@ -146,6 +146,35 @@ a{color:var(--navy)}.positive{color:#286447}.negative{color:var(--red)}
 .list-pagination-top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin:0 0 15px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;scroll-margin-top:20px}.list-pagination-top label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:650}.list-pagination-top select{font-size:14px;padding:7px 9px}.list-pagination-bottom{display:flex;align-items:center;justify-content:flex-end;gap:16px;margin:16px 0 0;font-size:14px}.list-pagination-bottom button{font-size:14px}.list-pagination-bottom button:disabled{opacity:.4;cursor:default}@media(max-width:760px){.list-pagination-top>.actions{width:100%;gap:12px}.list-pagination-top label{flex-wrap:wrap}.list-pagination-bottom{justify-content:center;gap:10px}}
 
 .pill.reserved{background:#eee3f6;color:#623f82;border:1px solid #cfb7e2}.agenda .cal-event.reservation{background:#eee3f6!important;border-left-color:#8658a5!important;box-shadow:none!important}.agenda .legend-swatch.reservation{background:#eee3f6;border-left:3px solid #8658a5}.reservation-summary{display:block;font-size:13px;font-weight:650;margin-top:5px}.reservation-fields{padding:14px;background:#f7f0fc;border:1px solid #d7c3e6;border-radius:9px}.reservation-fields[hidden]{display:none!important}.reservation-fields>.field{max-width:380px}.reservation-notice{padding:18px;border:1px solid #d7c3e6;border-left:4px solid #8658a5;border-radius:11px;background:#faf6fd;margin-bottom:20px}.reservation-notice .panel-head{margin-bottom:0;flex-wrap:wrap}.reservation-notice p{font-size:14px}.reservation-notice .list-row{gap:16px}.reservation-notice .list-row small{font-size:13px}#reservationList .actions{flex-wrap:wrap;justify-content:flex-end}.agenda-item>.actions{flex-wrap:wrap}
+
+/* Navegação estável: a rolagem do módulo fica restrita à área de conteúdo. */
+@media screen{
+html,body{height:100%;overflow:hidden}
+body{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr)}
+.app-header{position:relative;flex-shrink:0}
+.layout{min-height:0;height:100%;overflow:hidden;align-items:stretch}
+.sidebar{position:relative;top:auto;min-height:0;height:100%;overflow-y:auto;overscroll-behavior:contain}
+.main{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;min-height:0;height:100%;overflow:hidden;align-content:stretch;margin:0 auto}
+.main>.topbar{grid-row:1;min-width:0}
+#content{grid-row:2;min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
+#backupNotice{grid-row:3;margin:8px 0 0;padding:6px 0}
+.main>.footer-note{grid-row:4;margin-top:10px}
+}
+@media screen and (max-width:760px){
+.layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+.sidebar{position:relative;height:auto;max-height:36vh;max-height:36dvh;min-width:0;overflow-y:auto}
+.sidebar .nav{min-width:0;overscroll-behavior-x:contain}
+.main{width:100%;min-width:0}
+.main>.topbar{margin-bottom:14px}
+.main>.footer-note{font-size:12px;line-height:1.4;margin-top:8px}
+}
+@media screen and (max-height:600px){
+.app-header{min-height:78px;padding-top:8px;padding-bottom:8px}
+.app-logo{width:108px;min-width:108px;height:60px}
+.app-title{font-size:24px}
+.app-tagline{font-size:12px}
+.sidebar{padding-top:12px;padding-bottom:12px}
+}
 </style></head><body>
 <header class="app-header"><div class="app-heading"><div id="appLogo" class="app-logo" aria-label="Logomarca Áster"><span class="logo-placeholder-mark" aria-hidden="true">▧</span><small>Logomarca</small></div><div><div class="app-title">Gestão de Serviços</div><p class="app-tagline">Consultoria e treinamento · Gestão operacional e financeira</p></div></div><div class="app-header-label">Seu trabalho, em perspectiva.</div></header>
 <div class="layout"><aside class="sidebar"><section class="consultant-card" aria-label="Identificação do consultor"><span class="consultant-label">Consultor responsável</span><div class="consultant-person"><span id="consultantInitials" class="consultant-avatar" aria-hidden="true">KS</span><div><strong id="consultantName" class="consultant-name">Kleber Bastos Santos</strong><span id="consultantRole" class="consultant-role">Consultor e professor</span></div></div><button class="consultant-edit" data-action="identity">Editar identificação</button></section><nav class="nav" aria-label="Menu principal"><button data-page="dashboard"><span class="symbol">◫</span> Gestão à vista</button><button data-page="simulator"><span class="symbol">⌁</span> Simulador</button><button data-page="services"><span class="symbol">▤</span> Serviços</button><button data-page="finance"><span class="symbol">$</span> Financeiro</button><button data-page="calendar"><span class="symbol">▦</span> Agenda</button><button data-page="hotels"><span class="symbol">⌂</span> Hospedagens</button><button data-page="reports"><span class="symbol">↗</span> Relatórios</button><button data-page="backup"><span class="symbol">↧</span> Backup e dados</button><button data-page="guide"><span class="symbol">?</span> Guia de uso</button></nav><div class="side-bottom">Planeje. Acompanhe. Evolua.<br>Gestão de serviços e viagens.</div></aside>
@@ -189,7 +218,7 @@ document.addEventListener('input',e=>{if(e.target.getAttribute?.('aria-invalid')
 function footer(form,label='Salvar'){return `<footer><button type="button" data-action="close">Cancelar</button><button class="primary" form="${form}" type="submit">${label}</button></footer>`}
 let lastRenderedModule=null;
 try{if(window.history&&'scrollRestoration' in window.history)window.history.scrollRestoration='manual'}catch{}
-function resetModuleScroll(){let reset=()=>{window.scrollTo?.({top:0,left:0,behavior:'instant'});if(document.scrollingElement){document.scrollingElement.scrollTop=0;document.scrollingElement.scrollLeft=0}let main=document.querySelector?.('.main');if(main){main.scrollTop=0;main.scrollLeft=0}document.querySelectorAll('#content .table-wrap,#content .calendar-scroll,#content .dashboard-chart-scroll').forEach(el=>{el.scrollTop=0;el.scrollLeft=0})};reset();window.requestAnimationFrame?.(reset)}
+function resetModuleScroll(){let reset=()=>{window.scrollTo?.({top:0,left:0,behavior:'instant'});if(document.scrollingElement){document.scrollingElement.scrollTop=0;document.scrollingElement.scrollLeft=0}let main=document.querySelector?.('.main');if(main){main.scrollTop=0;main.scrollLeft=0}let content=$('content');if(content){content.scrollTop=0;content.scrollLeft=0}document.querySelectorAll('#content .table-wrap,#content .calendar-scroll,#content .dashboard-chart-scroll').forEach(el=>{el.scrollTop=0;el.scrollLeft=0})};reset();window.requestAnimationFrame?.(reset)}
 function navigateModule(next){if(page==='simulator')rememberSimulation();page=next;render();resetModuleScroll()}
 function render(){let moduleChanged=lastRenderedModule!==page;renderIdentity();$('yearFilter').hidden=['hotels','simulator','finance','backup','guide'].includes(page);$('newService').textContent=page==='calendar'?'+ Agendar serviço':page==='finance'?'+ Despesa':page==='hotels'?'+ Cadastrar hotel':page==='simulator'?'Salvar simulação':'+ Novo serviço';let ys=new Set([String(new Date().getFullYear()),year]);data.visits.forEach(v=>ys.add(v.start.slice(0,4)));[...data.expenses,...data.receipts].forEach(x=>ys.add(x.date.slice(0,4)));data.services.filter(s=>s.paymentDue).forEach(s=>ys.add(s.paymentDue.slice(0,4)));$('year').innerHTML=[...ys].sort().reverse().map(y=>`<option ${y===year?'selected':''}>${y}</option>`).join('');$('modeBanner').innerHTML='';$('modeBanner').hidden=true;$('newService').hidden=['dashboard','reports','backup','guide'].includes(page);
 let titles={dashboard:['Gestão à vista','Uma visão clara dos seus serviços e viagens.'],simulator:['Simulador de viabilidade','Avalie o trabalho antes de assumir o compromisso.'],services:['Serviços','Cadastre e acompanhe a execução dos seus trabalhos.'],finance:['Financeiro','Despesas, recebimentos e resultados dos seus serviços.'],calendar:['Agenda','Atendimentos e deslocamentos no seu calendário.'],hotels:['Consulta de hospedagens','Lembre onde ficou, quanto pagou e como entrar em contato.'],reports:['Relatórios','Serviços, recebimentos e jornada por período, cliente e cidade.'],backup:['Backup e dados','Guarde uma cópia e recupere seus registros.'],guide:['Guia de uso','Instruções práticas para começar e consultar quando precisar.']};$('pageTitle').textContent=titles[page][0];$('pageSubtitle').textContent=titles[page][1];document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));if(page!=='simulator')simLoaded=false;
