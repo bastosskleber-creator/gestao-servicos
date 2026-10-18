@@ -147,18 +147,18 @@ a{color:var(--navy)}.positive{color:#286447}.negative{color:var(--red)}
 
 .pill.reserved{background:#eee3f6;color:#623f82;border:1px solid #cfb7e2}.agenda .cal-event.reservation{background:#eee3f6!important;border-left-color:#8658a5!important;box-shadow:none!important}.agenda .legend-swatch.reservation{background:#eee3f6;border-left:3px solid #8658a5}.reservation-summary{display:block;font-size:13px;font-weight:650;margin-top:5px}.reservation-fields{padding:14px;background:#f7f0fc;border:1px solid #d7c3e6;border-radius:9px}.reservation-fields[hidden]{display:none!important}.reservation-fields>.field{max-width:380px}.reservation-notice{padding:18px;border:1px solid #d7c3e6;border-left:4px solid #8658a5;border-radius:11px;background:#faf6fd;margin-bottom:20px}.reservation-notice .panel-head{margin-bottom:0;flex-wrap:wrap}.reservation-notice p{font-size:14px}.reservation-notice .list-row{gap:16px}.reservation-notice .list-row small{font-size:13px}#reservationList .actions{flex-wrap:wrap;justify-content:flex-end}.agenda-item>.actions{flex-wrap:wrap}
 
-/* Navegação estável: a rolagem do módulo fica restrita à área de conteúdo. */
+/* Apenas cabeçalho e menu ficam fixos; o módulo inteiro rola na área principal. */
 @media screen{
 html,body{height:100%;overflow:hidden}
 body{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1fr)}
 .app-header{position:relative;flex-shrink:0}
 .layout{min-height:0;height:100%;overflow:hidden;align-items:stretch}
 .sidebar{position:relative;top:auto;min-height:0;height:100%;overflow-y:auto;overscroll-behavior:contain}
-.main{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;min-height:0;height:100%;overflow:hidden;align-content:stretch;margin:0 auto}
-.main>.topbar{grid-row:1;min-width:0}
-#content{grid-row:2;min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable}
-#backupNotice{grid-row:3;margin:8px 0 0;padding:6px 0}
-.main>.footer-note{grid-row:4;margin-top:10px}
+.main{display:block;min-height:0;height:100%;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;margin:0 auto}
+.main>.topbar{position:static;min-width:0}
+#content{min-width:0;overflow:visible}
+#backupNotice{margin:8px 0 0;padding:6px 0}
+.main>.footer-note{margin-top:10px}
 }
 @media screen and (max-width:760px){
 .layout{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
