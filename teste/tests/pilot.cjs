@@ -4,7 +4,7 @@ const root=process.env.PILOT_REPO_ROOT||path.resolve(__dirname,'../..');
 const users={a:{id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',email:'teste-a@example.com'},b:{id:'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',email:'teste-b@example.com'}};
 const rows=new Map(),hotels=[],rates=[];let failWrites=false,writeDelay=0,hotelFailOnce=false,loseHotelResponse=false;
 const copy=x=>JSON.parse(JSON.stringify(x));
-const token=u=>['eyJhbGciOiJIUzI1NiJ9',Buffer.from(JSON.stringify({sub:u.id,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url'),'test'].join('.');
+const tokens=new Map();const token=u=>{if(!tokens.has(u.id))tokens.set(u.id,['eyJhbGciOiJIUzI1NiJ9',Buffer.from(JSON.stringify({sub:u.id,exp:Math.floor(Date.now()/1000)+3600,role:'authenticated'})).toString('base64url'),'test'].join('.'));return tokens.get(u.id)};
 const server=http.createServer((req,res)=>{let name=path.join(root,new URL(req.url,'http://a').pathname);if(fs.existsSync(name)&&fs.statSync(name).isDirectory())name+='/index.html';try{let b=fs.readFileSync(name);res.setHeader('Content-Type',name.endsWith('.js')?'text/javascript':'text/html');res.end(b)}catch{res.statusCode=404;res.end('not found')}});
 (async()=>{
 await new Promise(r=>server.listen(0,'127.0.0.1',r));const url='http://127.0.0.1:'+server.address().port+'/teste/';
@@ -41,6 +41,11 @@ await context.route('https://sgatwaxxxdmbftybkeom.supabase.co/**',async route=>{
        result=result.map(h=>({...h,ac_diarias:rates.filter(r=>r.hotel_id===h.id).sort((a,b)=>b.data_referencia.localeCompare(a.data_referencia)||b.criado_em.localeCompare(a.criado_em)||b.id.localeCompare(a.id)).slice(0,1)}));
      }
      return respond(200,result);
+   }
+   if(method==='PATCH'){
+     assert.equal(u.searchParams.get('criado_por'),'eq.'+user.id);
+     const hotel=hotels.find(h=>'eq.'+h.id===u.searchParams.get('id')&&h.criado_por===user.id);
+     assert.ok(!('criado_por' in body));if(!hotel)return respond(200,[]);Object.assign(hotel,copy(body));return respond(200,[{id:hotel.id}]);
    }
    if(method==='POST'){
      assert.equal(body.criado_por,user.id);if(hotels.some(h=>h.nome.toLowerCase()===body.nome.toLowerCase()&&h.cidade===body.cidade&&h.uf===body.uf))return respond(409,{code:'23505'});
@@ -89,14 +94,14 @@ let downloadPromise=page.waitForEvent('download');await page.click('#pilotDraftD
 await page.click('#pilotUseRemote');await page.waitForFunction(()=>!pilot.conflict);assert.equal(await page.evaluate(()=>data.identity.name),'Outro aparelho');
 console.log('PASS: multi-device conflict preserves remote and local recovery copy');
 // Shared data stays separate. Existing expenses retain their contracted rate.
-await page.click('[data-page=hotels]');await page.waitForFunction(()=>pilot.hotelsLoaded);await page.click('#sharedNew');
-await page.fill('#sharedHotelForm [name=nome]','Hotel Horizonte');await page.fill('#sharedHotelForm [name=cidade]','Jequié');await page.fill('#sharedHotelForm [name=telefone]','73999999999');await page.fill('#sharedHotelForm [name=valor]','180');await page.fill('#sharedHotelForm [name=tipo_quarto]','Individual com café');await page.click('[form=sharedHotelForm]');await page.waitForFunction(()=>pilot.hotels.length===1);
-assert.equal(hotels.length,1);assert.ok(!('notes' in hotels[0]));assert.equal(hotels[0].criado_por,users.a.id);
+await page.click('[data-page=hotels]');await page.waitForFunction(()=>pilot.hotelsLoaded);await page.click('#newService');await page.check('#shareHotel');
+await page.fill('#hotelForm [name=hotelName]','Hotel Horizonte');await page.fill('#hotelForm [name=city]','Jequié');await page.fill('#hotelForm [name=phone]','73999999999');await page.fill('#hotelForm [name=hotelRate]','180');await page.fill('#hotelForm [name=tipo_quarto]','Individual com café');await page.check('#hotelForm [name=amenities][value=cafe_da_manha]');await page.check('#hotelForm [name=amenities][value=piscina]');await page.fill('#hotelForm [name=contact]','Contato particular');await page.fill('#hotelForm [name=hotelNotes]','Minha observação particular');await page.click('[form=hotelForm]');await page.waitForFunction(()=>pilot.hotels.length===1);
+assert.equal(hotels.length,1);assert.ok(!('notes' in hotels[0]));assert.ok(!('contact' in hotels[0]));assert.deepEqual(hotels[0].comodidades,['cafe_da_manha','piscina']);assert.equal(hotels[0].criado_por,users.a.id);
 assert.equal(rates[0].valor,180);assert.equal(rates[0].tipo_quarto,'Individual com café');assert.ok((await page.locator('#sharedResults').innerText()).includes('180,00'));assert.ok((await page.locator('#sharedResults').innerText()).includes('Individual com café'));
 assert.equal(rates.length,1);await page.click('[data-shared=details]');await page.waitForSelector('#sharedUse');await page.click('#sharedUse');await page.waitForFunction(()=>!pilot.dirty&&!pilot.busy);
 assert.equal(rows.get(users.a.id).dados.hotels.find(h=>h.name==='Hotel Horizonte').rates[0].nightly,180);
 assert.equal(rows.get(users.a.id).dados.expenses.find(e=>e.id==='e1').nightly,120);
-console.log('PASS: shared hotel, rate history, private copy, unchanged contracted expense');
+assert.equal(await page.locator('#sharedNew').count(),0);assert.equal(await page.locator('#newService').innerText(),'+ Cadastrar hotel');assert.ok((await page.locator('#sharedResults').innerText()).includes('Café da manhã'));assert.ok((await page.locator('#hotelResults').innerText()).includes('Piscina'));console.log('PASS: one create button, shared amenities, private notes, rates and unchanged contracted expense');
 // Lost rate response: retry same form retains the same id.
 hotelFailOnce=true;await page.click('[data-shared=rate]');await page.fill('#sharedRateForm [name=valor]','190');await page.click('[form=sharedRateForm]');await page.waitForFunction(()=>!pilot.sharedBusy);assert.equal(rates.length,2);await page.click('[form=sharedRateForm]');await page.waitForFunction(()=>!pilot.sharedBusy);assert.equal(rates.length,2);
 console.log('PASS: lost response retry does not duplicate shared rate');
@@ -109,23 +114,36 @@ rates.pop();await page.setViewportSize({width:390,height:844});await page.locato
 console.log('PASS: shared card shows latest reference, date and room; old reference does not overwrite current price');
 
 // Combined creation recovers a lost rate response without creating a second hotel or rate.
-await page.click('#sharedNew');await page.fill('#sharedHotelForm [name=nome]','Hotel Segundo');await page.fill('#sharedHotelForm [name=cidade]','Jequié');await page.fill('#sharedHotelForm [name=valor]','160');hotelFailOnce=true;
-await page.click('[form=sharedHotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy);assert.equal(hotels.length,2);assert.equal(rates.length,3);assert.ok((await page.locator('#formFeedback').innerText()).includes('falta confirmar a diária'));
-await page.click('[form=sharedHotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy);assert.equal(hotels.length,2);assert.equal(rates.length,3);await page.waitForFunction(()=>pilot.hotels.length===2);
+await page.click('#newService');await page.check('#shareHotel');await page.fill('#hotelForm [name=hotelName]','Hotel Segundo');await page.fill('#hotelForm [name=city]','Jequié');await page.fill('#hotelForm [name=hotelRate]','160');hotelFailOnce=true;
+await page.click('[form=hotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy);assert.equal(hotels.length,2);assert.equal(rates.length,3);assert.ok((await page.locator('#formFeedback').innerText()).includes('pendente'));
+await page.click('[form=hotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy);assert.equal(hotels.length,2);assert.equal(rates.length,3);await page.waitForFunction(()=>pilot.hotels.length===2);
 console.log('PASS: combined hotel and rate retry after lost response is idempotent');
 // A hotel without a known rate is allowed; retry also confirms a lost hotel response.
-await page.click('#sharedNew');await page.fill('#sharedHotelForm [name=nome]','Hotel Sem Valor');await page.fill('#sharedHotelForm [name=cidade]','Salvador');loseHotelResponse=true;
-await page.click('[form=sharedHotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy);assert.equal(hotels.length,3);assert.equal(rates.length,3);
-await page.click('[form=sharedHotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy);await page.waitForFunction(()=>pilot.hotels.length===3);assert.equal(hotels.length,3);assert.equal(rates.length,3);
+await page.click('#newService');await page.check('#shareHotel');await page.fill('#hotelForm [name=hotelName]','Hotel Sem Valor');await page.fill('#hotelForm [name=city]','Salvador');loseHotelResponse=true;
+await page.click('[form=hotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy);assert.equal(hotels.length,3);assert.equal(rates.length,3);
+await page.click('[form=hotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy);await page.waitForFunction(()=>pilot.hotels.length===3);assert.equal(hotels.length,3);assert.equal(rates.length,3);
 assert.ok((await page.locator('#sharedResults').innerText()).includes('160,00'));assert.ok((await page.locator('#sharedResults').innerText()).includes('Diária ainda não informada.'));console.log('PASS: unknown initial rate remains optional and lost hotel response does not duplicate');
 // Existing hotel and invalid rate must be rejected before any insertion.
-await page.click('#sharedNew');await page.fill('#sharedHotelForm [name=nome]','Hotel Horizonte');await page.fill('#sharedHotelForm [name=cidade]','Jequié');await page.fill('#sharedHotelForm [name=valor]','220');await page.click('[form=sharedHotelForm]');assert.equal(hotels.length,3);assert.equal(rates.length,3);assert.ok((await page.locator('#formFeedback').innerText()).includes('já está cadastrado'));await page.click('#modal [data-action=close]');
-await page.click('#sharedNew');await page.fill('#sharedHotelForm [name=nome]','Hotel Inválido');await page.fill('#sharedHotelForm [name=cidade]','Salvador');await page.fill('#sharedHotelForm [name=valor]','-1');await page.click('[form=sharedHotelForm]');assert.equal(hotels.length,3);assert.equal(rates.length,3);
-await page.setViewportSize({width:390,height:844});await page.fill('#sharedHotelForm [name=valor]','170');await page.screenshot({path:'/tmp/shared-hotel-initial-rate-mobile.png',fullPage:true});await page.click('#modal [data-action=close]');await page.setViewportSize({width:1280,height:800});
+await page.click('#newService');await page.check('#shareHotel');await page.fill('#hotelForm [name=hotelName]','Hotel Horizonte');await page.fill('#hotelForm [name=city]','Jequié');await page.fill('#hotelForm [name=hotelRate]','220');await page.click('[form=hotelForm]');assert.equal(hotels.length,3);assert.equal(rates.length,3);assert.ok((await page.locator('#formFeedback').innerText()).includes('já está no seu cadastro'));await page.click('#modal [data-action=close]');
+await page.click('#newService');await page.check('#shareHotel');await page.fill('#hotelForm [name=hotelName]','Hotel Inválido');await page.fill('#hotelForm [name=city]','Salvador');await page.fill('#hotelForm [name=hotelRate]','-1');await page.click('[form=hotelForm]');assert.equal(hotels.length,3);assert.equal(rates.length,3);
+await page.setViewportSize({width:390,height:844});await page.fill('#hotelForm [name=hotelRate]','170');await page.screenshot({path:'/tmp/shared-hotel-initial-rate-mobile.png',fullPage:true});await page.click('#modal [data-action=close]');await page.setViewportSize({width:1280,height:800});
 console.log('PASS: duplicate hotel and invalid initial rate rejected');
+const rateCountBeforeEdit=rates.length;
+await page.evaluate(()=>hotelForm(data.hotels.find(h=>h.name==='Hotel Horizonte').id));
+assert.equal(await page.isChecked('#shareHotel'),false);
+await page.check('#shareHotel');await page.check('#hotelForm [name=amenities][value=academia]');await page.fill('#hotelForm [name=address]','Rua do Hotel');await page.click('[form=hotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy&&!pilot.dirty&&!pilot.busy);
+assert.deepEqual(hotels[0].comodidades,['cafe_da_manha','academia','piscina']);assert.equal(hotels[0].endereco,'Rua do Hotel');assert.equal(rates.length,rateCountBeforeEdit);assert.equal(rows.get(users.a.id).dados.hotels.find(h=>h.name==='Hotel Horizonte').contact,'Contato particular');
+console.log('PASS: owner updates amenities while private fields stay private and unchanged rate is not republished');
 // New account sees shared hotels, never the previous user's private snapshot.
 await page.click('#pilotLogout');await page.waitForSelector('#pilotLoginButton',{state:'visible'});await login(users.b);assert.equal(await page.evaluate(()=>data.services.length),0);await page.click('[data-page=hotels]');await page.waitForFunction(()=>pilot.hotelsLoaded);assert.equal(await page.evaluate(()=>pilot.hotels.length),3);assert.equal(await page.evaluate(()=>data.hotels.length),0);
 console.log('PASS: account isolation and shared catalog visibility');
+const sharedBefore=hotels.length,ratesBefore=rates.length;
+await page.click('#newService');assert.equal(await page.isChecked('#shareHotel'),false);
+await page.fill('#hotelForm [name=hotelName]','Hotel Particular B');await page.fill('#hotelForm [name=city]','Iguaí');await page.check('#hotelForm [name=amenities][value=wifi]');await page.check('#hotelForm [name=amenities][value=estacionamento]');await page.click('[form=hotelForm]');await page.waitForFunction(()=>!pilot.dirty&&!pilot.busy);
+assert.equal(hotels.length,sharedBefore);assert.equal(rates.length,ratesBefore);assert.equal(rows.get(users.b.id).dados.hotels[0].name,'Hotel Particular B');assert.deepEqual(rows.get(users.b.id).dados.hotels[0].amenities,['estacionamento','wifi']);assert.ok(!rows.get(users.a.id).dados.hotels.some(h=>h.name==='Hotel Particular B'));
+console.log('PASS: sharing is opt-in; private amenities and account data stay isolated');
+await page.click('#newService');await page.fill('#hotelForm [name=hotelName]','Hotel de Exemplo');await page.fill('#hotelForm [name=city]','Jequié');await page.check('#hotelForm [name=amenities][value=cafe_da_manha]');await page.check('#hotelForm [name=amenities][value=academia]');await page.check('#hotelForm [name=amenities][value=piscina]');await page.setViewportSize({width:390,height:844});await page.locator('.hotel-amenity-options').scrollIntoViewIfNeeded();await page.screenshot({path:'/tmp/unified-hotel-form-mobile.png'});await page.click('#modal [data-action=close]');
+
 // Mobile layout and clean runtime.
 await page.setViewportSize({width:390,height:844});await page.screenshot({path:'/tmp/pilot-mobile.png',fullPage:true});
 assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'mobile page should not overflow horizontally');
