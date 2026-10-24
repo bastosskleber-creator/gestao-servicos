@@ -197,6 +197,22 @@ body{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1f
 .pilot-conflict{position:fixed;z-index:10000;inset:0;background:#183626bb;display:grid;place-items:center;padding:20px}.pilot-conflict[hidden]{display:none}.pilot-conflict>div{max-width:620px;background:white;padding:28px;border-radius:18px}.pilot-conflict .actions{margin-top:20px}
 .shared-panel{border-top:4px solid #849947;margin-bottom:28px}.shared-panel .hotel-grid{margin-top:18px}.shared-panel input[type=search]{width:min(100%,520px)}.shared-panel .hotel-card{padding:18px}.shared-panel h2{margin-top:0}.shared-panel .help{font-size:15px}
 @media(max-width:600px){.pilot-gate{margin:24px 14px;padding:22px}.pilot-bar{padding:10px 14px}.pilot-bar strong{width:100%}}
+/* On phones, only the compact brand and navigation stay outside the main scroll. */
+@media screen and (max-width:760px){
+  .app-header{min-height:72px;padding:10px 14px}
+  .app-heading{gap:12px;width:100%}
+  .app-logo{width:94px;min-width:94px;height:48px}
+  .app-title{font-size:19px;line-height:1.25}
+  .app-tagline{display:none}
+  .layout{grid-template-rows:auto minmax(0,1fr)}
+  .sidebar{max-height:none;height:auto;overflow:hidden;padding:8px 12px;gap:0}
+  .sidebar .nav{margin:0;padding:0 0 3px;overflow-x:auto}
+  .main{padding:12px;scrollbar-gutter:auto}
+  .main>.pilot-bar{position:static;z-index:auto;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:12px;font-size:13px;gap:7px}
+  .main>.pilot-bar button{font-size:13px;padding:6px 9px}
+  .main>.pilot-bar #pilotAccount{overflow-wrap:anywhere}
+  .main>.consultant-card{margin-bottom:12px}
+}
 @media print{.pilot-bar,.pilot-gate,.pilot-conflict{display:none!important}}
 </style></head><body class="pilot-locked">
 <header class="app-header"><div class="app-heading"><div id="appLogo" class="app-logo" aria-label="Logomarca Áster Conecta"><span class="logo-placeholder-mark" aria-hidden="true">▧</span><small>Logomarca</small></div><div><div class="app-title">Gestão de Serviços</div><p class="app-tagline">Consultoria e Treinamento – Gestão Operacional e Financeira</p></div></div><div class="app-header-label">Seu trabalho, em perspectiva.</div></header>
@@ -405,6 +421,8 @@ async function googleAgendaSync(){}
 function googleAgendaRemember(){return persist()}
 function googleAgendaPanel(){return '<section class="panel"><h2>Google Agenda</h2><p>Durante os testes da nuvem, sincronize o Google Agenda pela versão principal. Assim, os lançamentos de teste não alteram seus compromissos reais.</p><a href="../" target="_blank" rel="noopener">Abrir versão principal</a></section>'}
 async function pilotStart(){
+  pilotMobileLayout();
+  window.matchMedia('(max-width:760px)').addEventListener('change',pilotMobileLayout);
   await pilotClaimTab();
   $('pilotLogin').onsubmit=async e=>{
     e.preventDefault();let b=$('pilotLoginButton');b.disabled=true;b.textContent='Entrando…';$('pilotLoginError').hidden=true;
@@ -429,6 +447,16 @@ async function pilotStart(){
   window.addEventListener('focus',()=>pilotRefresh());
   window.addEventListener('beforeunload',e=>{if(pilot.dirty||pilot.busy||pilot.sharedBusy){e.preventDefault();e.returnValue=''}});
   setInterval(()=>{if(document.visibilityState==='visible')pilotRefresh()},30000);
+}
+function pilotMobileLayout(){
+  const main=document.querySelector('.main'),sidebar=document.querySelector('.sidebar'),nav=sidebar.querySelector('.nav'),card=document.querySelector('.consultant-card'),bar=$('pilotBar'),layout=document.querySelector('.layout');
+  if(window.matchMedia('(max-width:760px)').matches){
+    if(card.parentElement!==main)main.prepend(card);
+    if(bar.parentElement!==main)main.prepend(bar);
+  }else{
+    if(card.parentElement!==sidebar)sidebar.insertBefore(card,nav);
+    if(bar.parentElement!==document.body)document.body.insertBefore(bar,layout);
+  }
 }
 function pilotFailClosed(err){pilot.ready=false;pilot.user=null;document.body.classList.add('pilot-locked');document.querySelector('.layout').inert=true;$('pilotGate').hidden=false;pilotStatus();$('pilotLoginError').textContent=pilotError(err);$('pilotLoginError').hidden=false}
 async function pilotFetch(input,init){
