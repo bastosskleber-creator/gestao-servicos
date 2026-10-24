@@ -497,9 +497,26 @@ function pilotSharedResults(){
   const q=norm($('sharedSearch').value),all=pilot.hotels.filter(h=>norm(h.nome+' '+h.cidade+' '+h.uf).includes(q)),limit=24,requested=Number($('sharedResults').dataset.offset||0),offset=q!==pilot.sharedQuery?0:Math.min(requested,Math.max(0,Math.floor((all.length-1)/limit)*limit));
   pilot.sharedQuery=q;$('sharedResults').dataset.offset=offset;
   $('sharedCount').textContent=pilot.hotelsLoaded?`${all.length} hotel(is) encontrado(s) · ${all.length?offset+1:0}–${Math.min(all.length,offset+limit)}`:'Carregando catálogo…';
-  $('sharedResults').innerHTML=`<div class="hotel-grid">${all.slice(offset,offset+limit).map(h=>`<article class="hotel-card"><span class="pill">${esc(h.cidade)} / ${esc(h.uf)}</span><h3>${esc(h.nome)}</h3><p>${esc(h.endereco||'Endereço não informado')}</p><p>${esc(h.telefone||'Telefone não informado')}</p>${pilotSharedPrice(h)}${pilotAmenityBadges(h.comodidades)}<div class="actions"><button data-shared="details" data-hotel="${esc(h.id)}">Diárias / usar hotel</button><button data-shared="rate" data-hotel="${esc(h.id)}">Informar diária</button></div></article>`).join('')||'<p>Nenhum hotel encontrado. Ajuste a busca ou cadastre um hotel.</p>'}</div><div class="actions"><button id="sharedPrev" ${offset===0?'disabled':''}>Anterior</button><button id="sharedNext" ${offset+limit>=all.length?'disabled':''}>Próximos</button></div>`;
+  $('sharedResults').innerHTML=`<div class="hotel-grid">${all.slice(offset,offset+limit).map(h=>`<article class="hotel-card"><span class="pill">${esc(h.cidade)} / ${esc(h.uf)}</span><h3>${esc(h.nome)}</h3><p>${esc(h.endereco||'Endereço não informado')}</p><p>${esc(h.telefone||'Telefone não informado')}</p>${pilotSharedPrice(h)}${pilotAmenityBadges(h.comodidades)}<div class="actions">${h.criado_por===pilot.user.id?`<button data-shared="edit" data-hotel="${esc(h.id)}">Editar</button>`:''}<button data-shared="details" data-hotel="${esc(h.id)}">Diárias / usar hotel</button><button data-shared="rate" data-hotel="${esc(h.id)}">Informar diária</button></div></article>`).join('')||'<p>Nenhum hotel encontrado. Ajuste a busca ou cadastre um hotel.</p>'}</div><div class="actions"><button id="sharedPrev" ${offset===0?'disabled':''}>Anterior</button><button id="sharedNext" ${offset+limit>=all.length?'disabled':''}>Próximos</button></div>`;
   $('sharedPrev').onclick=()=>{$('sharedResults').dataset.offset=offset-limit;pilotSharedResults()};$('sharedNext').onclick=()=>{$('sharedResults').dataset.offset=offset+limit;pilotSharedResults()};
-  $('sharedResults').onclick=e=>{let b=e.target.closest('[data-shared]');if(!b)return;let h=pilot.hotels.find(h=>h.id===b.dataset.hotel);if(h)(b.dataset.shared==='rate'?pilotRateForm(h):pilotHotelDetails(h))};
+  $('sharedResults').onclick=e=>{let b=e.target.closest('[data-shared]');if(!b)return;let h=pilot.hotels.find(h=>h.id===b.dataset.hotel);if(h){if(b.dataset.shared==='edit')pilotEditSharedHotel(h);else if(b.dataset.shared==='rate')pilotRateForm(h);else pilotHotelDetails(h)}};
+}
+function pilotEditSharedHotel(h){
+  if(!h||h.criado_por!==pilot.user?.id){toast('Somente quem cadastrou o hotel pode corrigir seus dados no catálogo.');return false}
+  modal('Editar hotel compartilhado',`<p>Corrija as informações do catálogo. As alterações ficarão visíveis aos participantes.</p><form id="sharedHotelEditForm"><div class="form-grid">${field('Nome do hotel *','nome',h.nome,'text','required maxlength="150"')}${field('Cidade *','cidade',h.cidade,'text','required maxlength="100"')}${ufField(h.uf)}${field('Telefone do hotel','telefone',h.telefone||'','tel','maxlength="40"')}${field('Endereço','endereco',h.endereco||'','text','maxlength="300"')}</div><h3>Comodidades e serviços</h3>${pilotAmenityOptions(h.comodidades)}</form>${footer('sharedHotelEditForm','Salvar alterações')}`);
+  $('sharedHotelEditForm').onsubmit=async e=>{
+    e.preventDefault();if(pilot.sharedBusy)return;
+    const form=e.target,f=Object.fromEntries(new FormData(form)),changes={nome:f.nome.trim(),cidade:f.cidade.trim(),uf:f.uf,telefone:f.telefone.trim(),endereco:f.endereco.trim(),comodidades:pilotAmenities(new FormData(form).getAll('amenities'))};
+    if(!changes.nome||!changes.cidade||!STATES.includes(changes.uf))throw Error('Confira nome, cidade e UF.');
+    if(pilot.hotels.some(x=>x.id!==h.id&&norm(x.nome)===norm(changes.nome)&&norm(x.cidade)===norm(changes.cidade)&&x.uf===changes.uf))throw Error('Outro hotel já usa esse nome, cidade e UF. Confira o cadastro existente.');
+    const button=document.querySelector('[form="sharedHotelEditForm"]');if(button)button.disabled=true;pilot.sharedBusy=true;
+    try{
+      const {data:rows,error}=await pilot.client.from('ac_hoteis').update(changes).eq('id',h.id).eq('criado_por',pilot.user.id).select('id');
+      if(error)throw Error(pilotError(error));if(rows?.length!==1)throw Error('A alteração não foi confirmada. Somente o autor pode editar este hotel.');
+      Object.assign(h,changes);$('modal').close();pilotSharedResults();await pilotLoadHotels();toast('Dados do hotel corrigidos no catálogo compartilhado.');
+    }finally{pilot.sharedBusy=false;if(button)button.disabled=false}
+  };
+  return true;
 }
 function pilotSharedPrice(h){
   const rate=h.ac_diarias?.[0];
