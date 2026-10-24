@@ -14,7 +14,8 @@ O `index.html` da raiz continua sendo a versão principal. O piloto usa exclusiv
 - O carregamento exige conexão e autenticação. O trabalho já aberto permite guardar alterações pendentes no navegador, sujeito à disponibilidade do armazenamento local.
 - As cópias pendentes são separadas por conta e aba. O painel de backup também permite baixar cópias pendentes deixadas por outras abas da mesma conta.
 - `ac_hoteis` e `ac_diarias` formam o catálogo compartilhado. O índice do banco impede nomes/cidades/UF equivalentes após normalizar espaços, maiúsculas e acentos. Grafias muito diferentes exigem conferência humana. Cada cidade pode ter vários hotéis.
-- As diárias são acrescentadas com data e tipo de quarto. O catálogo mostra até 100 referências recentes de cada hotel. Não são concedidas alterações ou exclusões de hotéis e diárias aos participantes.
+- O formulário de hotel compartilhado permite informar a primeira diária, sua data e o tipo de quarto na mesma operação. O valor pode ficar em branco quando não for conhecido. Se a confirmação de uma gravação falhar, o mesmo formulário permite concluir sem duplicar o hotel ou a diária; após o hotel ser confirmado, seus campos ficam bloqueados nessa tentativa.
+- As diárias são acrescentadas com data e tipo de quarto. O cartão compartilhado mostra a diária com data de referência mais recente, seu tipo de quarto e data; em empate, prioriza a referência cadastrada mais recentemente. O histórico mostra até 100 referências recentes de cada hotel. Não são concedidas alterações ou exclusões de hotéis e diárias aos participantes.
 - Usar um hotel do catálogo cria uma cópia no cadastro particular. Alterar referências compartilhadas não atualiza reservas, despesas contratadas ou observações particulares.
 - Não há importação automática dos dados da versão principal. Um backup pode ser importado de forma explícita pelo painel de backup; ele substitui os dados particulares da conta após confirmação e download da cópia anterior.
 - O backup em pasta usa outro armazenamento de permissões e nome de arquivo exclusivo do piloto e do usuário. A gravação depende do sistema aberto e da permissão do navegador.
@@ -30,7 +31,7 @@ Tabelas: `ac_dados_usuario`, `ac_hoteis`, `ac_diarias`, todas com RLS habilitado
 
 ## Validação
 
-Testes de navegador com API simulada: login, isolamento da versão principal, inclusão inicial, finalização sem recebimento automático, fila de alterações durante um envio, recuperação de pendência após recarregar, conflito entre aparelhos, catálogo compartilhado, preservação de despesa contratada, repetição de diária após perda de resposta, troca de conta, largura móvel e ausência de erros JavaScript.
+Testes de navegador com API simulada: login, isolamento da versão principal, inclusão inicial, finalização sem recebimento automático, fila de alterações durante um envio, recuperação de pendência após recarregar, conflito entre aparelhos, catálogo compartilhado, preservação de despesa contratada, repetição de diária após perda de resposta, criação conjunta de hotel e diária, retomada após resposta perdida de hotel ou diária, cadastro sem valor conhecido, rejeição de hotel repetido e valor inválido, preço visível no cartão compartilhado e preservação da referência atual quando é inserido um valor histórico, troca de conta, largura móvel e ausência de erros JavaScript.
 
 Execução: instale `playwright`, execute `npx playwright install chromium` e rode `node teste/tests/pilot.cjs` na raiz do repositório. `PILOT_CHROME_PATH` pode indicar um Chromium já instalado.
 
