@@ -14,14 +14,19 @@ O `index.html` da raiz continua sendo a versão principal. O piloto usa exclusiv
 - O carregamento exige conexão e autenticação. O trabalho já aberto permite guardar alterações pendentes no navegador, sujeito à disponibilidade do armazenamento local.
 - As cópias pendentes são separadas por conta e aba. O painel de backup também permite baixar cópias pendentes deixadas por outras abas da mesma conta.
 - `ac_hoteis` e `ac_diarias` formam o catálogo compartilhado. O índice do banco impede nomes/cidades/UF equivalentes após normalizar espaços, maiúsculas e acentos. Grafias muito diferentes exigem conferência humana. Cada cidade pode ter vários hotéis.
-- O formulário de hotel compartilhado permite informar a primeira diária, sua data e o tipo de quarto na mesma operação. O valor pode ficar em branco quando não for conhecido. Se a confirmação de uma gravação falhar, o mesmo formulário permite concluir sem duplicar o hotel ou a diária; após o hotel ser confirmado, seus campos ficam bloqueados nessa tentativa.
-- As diárias são acrescentadas com data e tipo de quarto. O cartão compartilhado mostra a diária com data de referência mais recente, seu tipo de quarto e data; em empate, prioriza a referência cadastrada mais recentemente. O histórico mostra até 100 referências recentes de cada hotel. Não são concedidas alterações ou exclusões de hotéis e diárias aos participantes.
+- Há um único botão Cadastrar hotel. O formulário começa particular, com a opção Compartilhar no catálogo desmarcada. Contato pessoal, observações e gastos nunca são incluídos no payload do catálogo. Comodidades e serviços são selecionados por opções com ícones. As listas particular e compartilhada continuam disponíveis para consulta.
+- O formulário permite informar a primeira diária, sua data e o tipo de quarto na mesma operação. O valor pode ficar em branco quando não for conhecido. Se a confirmação de uma gravação falhar, o mesmo formulário permite concluir sem duplicar o hotel ou a diária; após o hotel ser confirmado, seus campos ficam bloqueados nessa tentativa.
+- As diárias são acrescentadas com data e tipo de quarto. O cartão compartilhado mostra a diária com data de referência mais recente, seu tipo de quarto e data; em empate, prioriza a referência cadastrada mais recentemente. O histórico mostra até 100 referências recentes de cada hotel. Após a migração 20261024_hotel_comodidades.sql, somente o autor do hotel pode alterar seus dados públicos; o banco limita UPDATE às colunas de nome, cidade, UF, endereço, telefone e comodidades. Outros participantes podem acrescentar diárias, sem alterar o autor nem excluir hotéis ou referências.
 - Usar um hotel do catálogo cria uma cópia no cadastro particular. Alterar referências compartilhadas não atualiza reservas, despesas contratadas ou observações particulares.
 - Não há importação automática dos dados da versão principal. Um backup pode ser importado de forma explícita pelo painel de backup; ele substitui os dados particulares da conta após confirmação e download da cópia anterior.
 - O backup em pasta usa outro armazenamento de permissões e nome de arquivo exclusivo do piloto e do usuário. A gravação depende do sistema aberto e da permissão do navegador.
 - Durante esta fase, a sincronização com Google Agenda permanece na versão principal. O piloto não escreve no calendário real e não importa seus vínculos.
 
 No celular, o cabeçalho compacto e o menu permanecem visíveis. O cartão do consultor e os controles de conta/sincronização rolam junto com o módulo para liberar espaço de leitura. No computador, permanecem na posição original.
+
+## Migração desta atualização
+
+Execute `migrations/20261024_hotel_comodidades.sql` no projeto Supabase antes de publicar este index.html. O script adiciona `comodidades text[]`, preserva os hotéis existentes e cria uma política UPDATE restrita ao autor com privilégios somente nas colunas públicas editáveis. A migração foi executada duas vezes em PostgreSQL local (PGlite), com verificação de autoria, negativa de alteração de outro hotel, negativa de troca de autor/exclusão, acesso anônimo recusado e políticas particulares preservadas.
 
 ## Banco necessário
 
