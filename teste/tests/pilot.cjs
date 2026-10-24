@@ -134,9 +134,20 @@ assert.equal(await page.isChecked('#shareHotel'),false);
 await page.check('#shareHotel');await page.check('#hotelForm [name=amenities][value=academia]');await page.fill('#hotelForm [name=address]','Rua do Hotel');await page.click('[form=hotelForm]');await page.waitForFunction(()=>!pilot.sharedBusy&&!pilot.dirty&&!pilot.busy);
 assert.deepEqual(hotels[0].comodidades,['cafe_da_manha','academia','piscina']);assert.equal(hotels[0].endereco,'Rua do Hotel');assert.equal(rates.length,rateCountBeforeEdit);assert.equal(rows.get(users.a.id).dados.hotels.find(h=>h.name==='Hotel Horizonte').contact,'Contato particular');
 console.log('PASS: owner updates amenities while private fields stay private and unchanged rate is not republished');
+const privateBeforeDirectEdit=copy(rows.get(users.a.id).dados),ratesBeforeDirectEdit=rates.length;
+const ownedCard=page.locator('#sharedResults .hotel-card').filter({has:page.locator('h3',{hasText:'Hotel Horizonte'})});
+assert.equal(await ownedCard.locator('[data-shared=edit]').count(),1);await ownedCard.locator('[data-shared=edit]').click();
+await page.fill('#sharedHotelEditForm [name=nome]','Hotel Segundo');await page.click('[form=sharedHotelEditForm]');assert.ok((await page.locator('#formFeedback').innerText()).includes('Outro hotel'));assert.equal(hotels[0].nome,'Hotel Horizonte');
+await page.fill('#sharedHotelEditForm [name=nome]','Hotel Horizonte Corrigido');await page.fill('#sharedHotelEditForm [name=telefone]','11988776655');await page.fill('#sharedHotelEditForm [name=endereco]','Rua Nova');await page.uncheck('#sharedHotelEditForm [name=amenities][value=piscina]');await page.check('#sharedHotelEditForm [name=amenities][value=wifi]');await page.click('[form=sharedHotelEditForm]');await page.waitForFunction(()=>!pilot.sharedBusy&&!$('modal').open);
+assert.equal(hotels[0].nome,'Hotel Horizonte Corrigido');assert.equal(hotels[0].telefone,'11988776655');assert.equal(hotels[0].endereco,'Rua Nova');assert.ok(hotels[0].comodidades.includes('wifi'));assert.ok(!hotels[0].comodidades.includes('piscina'));assert.equal(rates.length,ratesBeforeDirectEdit);assert.deepEqual(rows.get(users.a.id).dados,privateBeforeDirectEdit);assert.ok((await page.locator('#sharedResults').innerText()).includes('Hotel Horizonte Corrigido'));
+console.log('PASS: shared card Edit corrects owner hotel, rejects duplicate, preserves private copy and all rates');
+
 // New account sees shared hotels, never the previous user's private snapshot.
 await page.click('#pilotLogout');await page.waitForSelector('#pilotLoginButton',{state:'visible'});await login(users.b);assert.equal(await page.evaluate(()=>data.services.length),0);await page.click('[data-page=hotels]');await page.waitForFunction(()=>pilot.hotelsLoaded);assert.equal(await page.evaluate(()=>pilot.hotels.length),3);assert.equal(await page.evaluate(()=>data.hotels.length),0);
 console.log('PASS: account isolation and shared catalog visibility');
+assert.equal(await page.locator('#sharedResults [data-shared=edit]').count(),0);assert.equal(await page.evaluate(()=>pilotEditSharedHotel(pilot.hotels[0])),false);assert.equal(await page.evaluate(()=>$('modal').open),false);
+console.log('PASS: other account cannot edit the author hotel from UI or direct handler');
+
 const sharedBefore=hotels.length,ratesBefore=rates.length;
 await page.click('#newService');assert.equal(await page.isChecked('#shareHotel'),false);
 await page.fill('#hotelForm [name=hotelName]','Hotel Particular B');await page.fill('#hotelForm [name=city]','Iguaí');await page.check('#hotelForm [name=amenities][value=wifi]');await page.check('#hotelForm [name=amenities][value=estacionamento]');await page.click('[form=hotelForm]');await page.waitForFunction(()=>!pilot.dirty&&!pilot.busy);
