@@ -24,6 +24,8 @@ O `index.html` da raiz continua sendo a versão principal. O piloto usa exclusiv
 
 No celular, o cabeçalho compacto e o menu permanecem visíveis. O cartão do consultor e os controles de conta/sincronização rolam junto com o módulo para liberar espaço de leitura. No computador, permanecem na posição original.
 
+O cartão compartilhado exibe Editar para o autor do hotel. Esse editor corrige nome, cidade, UF, endereço, telefone e comodidades diretamente no catálogo, sem modificar as cópias particulares nem as diárias existentes. O banco mantém a restrição de autoria.
+
 ## Migração desta atualização
 
 Execute `migrations/20261024_hotel_comodidades.sql` no projeto Supabase antes de publicar este index.html. O script adiciona `comodidades text[]`, preserva os hotéis existentes e cria uma política UPDATE restrita ao autor com privilégios somente nas colunas públicas editáveis. A migração foi executada duas vezes em PostgreSQL local (PGlite), com verificação de autoria, negativa de alteração de outro hotel, negativa de troca de autor/exclusão, acesso anônimo recusado e políticas particulares preservadas.
