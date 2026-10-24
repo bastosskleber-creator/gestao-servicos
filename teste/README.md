@@ -20,6 +20,8 @@ O `index.html` da raiz continua sendo a versão principal. O piloto usa exclusiv
 - O backup em pasta usa outro armazenamento de permissões e nome de arquivo exclusivo do piloto e do usuário. A gravação depende do sistema aberto e da permissão do navegador.
 - Durante esta fase, a sincronização com Google Agenda permanece na versão principal. O piloto não escreve no calendário real e não importa seus vínculos.
 
+No celular, o cabeçalho compacto e o menu permanecem visíveis. O cartão do consultor e os controles de conta/sincronização rolam junto com o módulo para liberar espaço de leitura. No computador, permanecem na posição original.
+
 ## Banco necessário
 
 Tabelas: `ac_dados_usuario`, `ac_hoteis`, `ac_diarias`, todas com RLS habilitado. A tabela particular exige política restrita a `auth.uid() = usuario_id` para todas as operações autorizadas. As tabelas compartilhadas permitem SELECT e INSERT a usuários autenticados, com `criado_por = auth.uid()` nos INSERTs. A role anon não tem acesso às tabelas.
