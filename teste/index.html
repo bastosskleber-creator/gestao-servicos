@@ -479,7 +479,7 @@ async function pilotLoadHotels(){
     if($('sharedCount'))$('sharedCount').textContent='Carregando catálogo…';
     let all=[];
     for(let offset=0;;offset+=500){
-      let {data:rows,error}=await pilot.client.from('ac_hoteis').select('id,nome,cidade,uf,endereco,telefone').order('nome').order('id').range(offset,offset+499);
+      let {data:rows,error}=await pilot.client.from('ac_hoteis').select('id,nome,cidade,uf,endereco,telefone,ac_diarias(id,valor,data_referencia,tipo_quarto,criado_em)').order('nome').order('id').order('data_referencia',{referencedTable:'ac_diarias',ascending:false}).order('criado_em',{referencedTable:'ac_diarias',ascending:false}).order('id',{referencedTable:'ac_diarias',ascending:false}).limit(1,{referencedTable:'ac_diarias'}).range(offset,offset+499);
       if(error)throw error;all.push(...rows);if(rows.length<500)break;if(all.length>=50000)throw Error('Catálogo muito grande');
     }
     if(pilot.user?.id!==account)return;pilot.hotels=all;pilot.hotelsLoaded=true;pilotSharedResults();
@@ -491,21 +491,61 @@ function pilotSharedResults(){
   const q=norm($('sharedSearch').value),all=pilot.hotels.filter(h=>norm(h.nome+' '+h.cidade+' '+h.uf).includes(q)),limit=24,requested=Number($('sharedResults').dataset.offset||0),offset=q!==pilot.sharedQuery?0:Math.min(requested,Math.max(0,Math.floor((all.length-1)/limit)*limit));
   pilot.sharedQuery=q;$('sharedResults').dataset.offset=offset;
   $('sharedCount').textContent=pilot.hotelsLoaded?`${all.length} hotel(is) encontrado(s) · ${all.length?offset+1:0}–${Math.min(all.length,offset+limit)}`:'Carregando catálogo…';
-  $('sharedResults').innerHTML=`<div class="hotel-grid">${all.slice(offset,offset+limit).map(h=>`<article class="hotel-card"><span class="pill">${esc(h.cidade)} / ${esc(h.uf)}</span><h3>${esc(h.nome)}</h3><p>${esc(h.endereco||'Endereço não informado')}</p><p>${esc(h.telefone||'Telefone não informado')}</p><div class="actions"><button data-shared="details" data-hotel="${esc(h.id)}">Diárias / usar hotel</button><button data-shared="rate" data-hotel="${esc(h.id)}">Informar diária</button></div></article>`).join('')||'<p>Nenhum hotel encontrado. Ajuste a busca ou cadastre um hotel.</p>'}</div><div class="actions"><button id="sharedPrev" ${offset===0?'disabled':''}>Anterior</button><button id="sharedNext" ${offset+limit>=all.length?'disabled':''}>Próximos</button></div>`;
+  $('sharedResults').innerHTML=`<div class="hotel-grid">${all.slice(offset,offset+limit).map(h=>`<article class="hotel-card"><span class="pill">${esc(h.cidade)} / ${esc(h.uf)}</span><h3>${esc(h.nome)}</h3><p>${esc(h.endereco||'Endereço não informado')}</p><p>${esc(h.telefone||'Telefone não informado')}</p>${pilotSharedPrice(h)}<div class="actions"><button data-shared="details" data-hotel="${esc(h.id)}">Diárias / usar hotel</button><button data-shared="rate" data-hotel="${esc(h.id)}">Informar diária</button></div></article>`).join('')||'<p>Nenhum hotel encontrado. Ajuste a busca ou cadastre um hotel.</p>'}</div><div class="actions"><button id="sharedPrev" ${offset===0?'disabled':''}>Anterior</button><button id="sharedNext" ${offset+limit>=all.length?'disabled':''}>Próximos</button></div>`;
   $('sharedPrev').onclick=()=>{$('sharedResults').dataset.offset=offset-limit;pilotSharedResults()};$('sharedNext').onclick=()=>{$('sharedResults').dataset.offset=offset+limit;pilotSharedResults()};
   $('sharedResults').onclick=e=>{let b=e.target.closest('[data-shared]');if(!b)return;let h=pilot.hotels.find(h=>h.id===b.dataset.hotel);if(h)(b.dataset.shared==='rate'?pilotRateForm(h):pilotHotelDetails(h))};
 }
+function pilotSharedPrice(h){
+  const rate=h.ac_diarias?.[0];
+  return rate?`<div class="hotel-price">${money(rate.valor)} <small style="font-size:17px;font-weight:400">/ diária informada</small></div><p class="help">Referência mais recente: ${date(rate.data_referencia)}${rate.tipo_quarto?'<br>'+esc(rate.tipo_quarto):''}</p>`:'<p class="help">Diária ainda não informada.</p>';
+}
 function pilotSharedForm(){
-  modal('Cadastrar hotel compartilhado',`<p>Nome, cidade, UF, endereço e telefone ficarão disponíveis aos participantes. Use um nome que identifique a unidade do hotel.</p><form id="sharedHotelForm"><div class="form-grid">${field('Nome do hotel *','nome','','text','required maxlength="150"')}${field('Cidade *','cidade','','text','required maxlength="100"')}${ufField('BA')}${field('Telefone do hotel','telefone','','tel','maxlength="40"')}${field('Endereço','endereco','','text','maxlength="300"')}</div><p class="help" id="sharedDuplicateHint" role="status"></p></form>${footer('sharedHotelForm','Publicar hotel')}`);
-  let f=$('sharedHotelForm');f.oninput=()=>{let city=norm(f.elements.cidade.value),name=norm(f.elements.nome.value),same=pilot.hotels.filter(h=>norm(h.cidade)===city&&h.uf===f.elements.uf.value);$('sharedDuplicateHint').textContent=city&&same.length?'Já existem nesta cidade: '+same.slice(0,8).map(h=>h.nome).join('; ')+'. Confira se é o mesmo hotel antes de publicar.':'';if(name&&same.some(h=>norm(h.nome)===name))$('sharedDuplicateHint').textContent='Este hotel já consta no catálogo. Feche e use Informar diária no cadastro existente.'};
-  f.onsubmit=async e=>{
-    e.preventDefault();if(pilot.sharedBusy)return;let values=Object.fromEntries(new FormData(f));
-    values.nome=values.nome.trim();values.cidade=values.cidade.trim();
-    if(!values.nome||!values.cidade||!STATES.includes(values.uf))throw Error('Confira o nome, a cidade e a UF.');
-    if(pilot.hotels.some(h=>norm(h.nome)===norm(values.nome)&&norm(h.cidade)===norm(values.cidade)&&h.uf===values.uf))throw Error('Este hotel já está cadastrado. Informe uma nova diária no hotel existente.');
-    pilot.sharedBusy=true;let button=document.querySelector('[form="sharedHotelForm"]');if(button)button.disabled=true;
-    try{let id=uid(),{error}=await pilot.client.from('ac_hoteis').insert({...values,id,criado_por:pilot.user.id});if(error)throw Error(pilotError(error));$('modal').close();await pilotLoadHotels();toast('Hotel publicado no catálogo compartilhado. Informe a diária no cadastro dele.')}finally{pilot.sharedBusy=false;if(button)button.disabled=false}
+  modal('Cadastrar hotel compartilhado',`<p>Cadastre o hotel e sua primeira diária de referência. As informações ficarão disponíveis aos participantes.</p><form id="sharedHotelForm"><div class="form-grid" id="sharedHotelIdentity">${field('Nome do hotel *','nome','','text','required maxlength="150"')}${field('Cidade *','cidade','','text','required maxlength="100"')}${ufField('BA')}${field('Telefone do hotel','telefone','','tel','maxlength="40"')}${field('Endereço','endereco','','text','maxlength="300"')}</div><p class="help" id="sharedDuplicateHint" role="status"></p><h3>Diária de referência</h3><div class="form-grid" id="sharedHotelInitialRate">${field('Valor da diária (R$)','valor','','number','min="0.01" max="99999999.99" step="0.01"')}${field('Data de referência','data_referencia',today(),'date')}${field('Tipo de quarto / condições','tipo_quarto','','text','maxlength="150" placeholder="Ex.: individual, café incluso"')}</div><p class="help">O valor pode ficar em branco se ainda não for conhecido. Depois, use Informar diária para acrescentar novas referências ao histórico.</p></form>${footer('sharedHotelForm','Salvar hotel e diária')}`);
+  const hotelId=uid(),rateId=uid();let savedHotel=null,pendingRate=null;
+  let f=$('sharedHotelForm');f.oninput=()=>{
+    f.elements.data_referencia.required=!!f.elements.valor.value;
+    if(savedHotel)return;
+    let city=norm(f.elements.cidade.value),name=norm(f.elements.nome.value),same=pilot.hotels.filter(h=>norm(h.cidade)===city&&h.uf===f.elements.uf.value);
+    $('sharedDuplicateHint').textContent=city&&same.length?'Já existem nesta cidade: '+same.slice(0,8).map(h=>h.nome).join('; ')+'. Confira se é o mesmo hotel antes de publicar.':'';
+    if(name&&same.some(h=>norm(h.nome)===name))$('sharedDuplicateHint').textContent='Este hotel já consta no catálogo. Feche e use Informar diária no cadastro existente.';
   };
+  f.onsubmit=async e=>{
+    e.preventDefault();if(pilot.sharedBusy)return;const values=Object.fromEntries(new FormData(f));
+    const hotel=savedHotel||{id:hotelId,nome:values.nome.trim(),cidade:values.cidade.trim(),uf:values.uf,telefone:values.telefone.trim(),endereco:values.endereco.trim(),criado_por:pilot.user.id};
+    if(!hotel.nome||!hotel.cidade||!STATES.includes(hotel.uf))throw Error('Confira o nome, a cidade e a UF.');
+    if(!savedHotel&&pilot.hotels.some(h=>h.id!==hotelId&&norm(h.nome)===norm(hotel.nome)&&norm(h.cidade)===norm(hotel.cidade)&&h.uf===hotel.uf))throw Error('Este hotel já está cadastrado. Informe uma nova diária no hotel existente.');
+    let rate=pendingRate;
+    if(!rate&&values.valor){
+      const value=Number(values.valor);
+      if(!Number.isFinite(value)||value<=0||value>99999999.99||!isDate(values.data_referencia))throw Error('Confira o valor e a data da diária.');
+      rate={id:rateId,hotel_id:hotelId,valor:value,data_referencia:values.data_referencia,tipo_quarto:values.tipo_quarto.trim(),criado_por:pilot.user.id};
+    }else if(!rate&&values.tipo_quarto.trim())throw Error('Informe o valor da diária ou deixe o tipo de quarto em branco para cadastrar somente o hotel.');
+    pilot.sharedBusy=true;let button=document.querySelector('[form="sharedHotelForm"]');if(button)button.disabled=true;
+    try{
+      if(!savedHotel){
+        await pilotInsertSharedOnce('ac_hoteis',hotel);savedHotel=hotel;
+        $('sharedHotelIdentity').querySelectorAll('input,select').forEach(el=>{if(el.tagName==='SELECT')el.disabled=true;else el.readOnly=true});
+      }
+      if(rate){
+        pendingRate=rate;
+        $('sharedHotelInitialRate').querySelectorAll('input').forEach(el=>el.readOnly=true);
+        await pilotInsertSharedOnce('ac_diarias',rate);
+      }
+      $('modal').close();await pilotLoadHotels();toast(rate?'Hotel e diária publicados no catálogo compartilhado.':'Hotel publicado no catálogo compartilhado.');
+    }catch(err){
+      if(savedHotel){$('sharedDuplicateHint').textContent='Hotel cadastrado. A confirmação da diária ficou pendente; clique em Tentar concluir cadastro para conferir e finalizar.';if(button)button.textContent='Tentar concluir cadastro';throw Error('O hotel foi cadastrado; falta confirmar a diária. '+(err.message||'Tente novamente.'))}
+      throw err;
+    }finally{pilot.sharedBusy=false;if(button)button.disabled=false}
+  };
+}
+async function pilotInsertSharedOnce(table,payload){
+  const {error}=await pilot.client.from(table).insert(payload);if(!error)return;
+  if(error.code==='23505'){
+    const check=await pilot.client.from(table).select('*').eq('id',payload.id).limit(1),existing=check.data?.[0];
+    if(!check.error&&existing&&Object.entries(payload).every(([key,value])=>key==='valor'?Number(existing[key])===value:existing[key]===value))return;
+    if(existing)throw Error('Uma tentativa anterior já foi salva com outras informações. Confira o catálogo antes de fazer uma nova alteração.');
+  }
+  throw Error(pilotError(error));
 }
 async function pilotRates(h){
   let {data:rows,error}=await pilot.client.from('ac_diarias').select('id,valor,data_referencia,tipo_quarto,criado_em').eq('hotel_id',h.id).order('data_referencia',{ascending:false}).order('criado_em',{ascending:false}).limit(100);
@@ -537,7 +577,7 @@ function pilotRateForm(h){
       if(error&&error.code==='23505'){
         let check=await pilot.client.from('ac_diarias').select('id').eq('id',rateId).eq('hotel_id',h.id);if(check.error||check.data?.length!==1)throw Error('Não foi possível confirmar a diária. Atualize o histórico antes de tentar novamente.');
       }else if(error)throw Error(pilotError(error));
-      $('modal').close();toast('Diária publicada. Os valores dos serviços já lançados foram mantidos.');
+      $('modal').close();await pilotLoadHotels();toast('Diária publicada. Os valores dos serviços já lançados foram mantidos.');
     }finally{pilot.sharedBusy=false;if(button)button.disabled=false}
   };
 }
