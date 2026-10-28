@@ -226,6 +226,10 @@ body{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1f
 .finance .finance-service-period{display:block;margin-top:3px;font-size:12px;line-height:1.45;font-weight:400;color:var(--muted)}
 
 .finance .actions .receipt-date{white-space:nowrap}
+
+/* Mantém os selos financeiros compactos, mesmo com menos espaço na tabela. */
+.finance .payment-status{flex-wrap:nowrap}
+.finance .payment-status .pill{display:inline-block;flex:0 0 auto;white-space:nowrap;line-height:1.5}
 </style></head><body class="pilot-locked">
 <header class="app-header"><div class="app-heading"><div id="appLogo" class="app-logo" aria-label="Logomarca Áster Conecta"><img src="../apresentacao/assets/aster-conecta-dourado.png" alt="Áster Conecta"></div><div><div class="app-title">Gestão de Serviços</div><p class="app-tagline">Consultoria e Treinamento – Gestão Operacional e Financeira</p></div></div><div class="app-header-label">Seu trabalho, em perspectiva.</div></header>
 <section id="pilotGate" class="pilot-gate" aria-labelledby="pilotGateTitle">
