@@ -192,7 +192,13 @@ body{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1f
 .pilot-bar[hidden],.pilot-gate[hidden]{display:none!important}
 @media screen{body{display:flex;flex-direction:column}.app-header{flex:0 0 auto}.layout{flex:1 1 0%;height:auto;width:100%;min-height:0}.pilot-bar{flex:0 0 auto;position:relative;z-index:6}.pilot-gate{flex:0 1 auto;overflow-y:auto}}
 .pilot-gate{max-width:480px;margin:42px auto;padding:28px;background:#fff;border:1px solid #d7e1d7;border-radius:18px;box-shadow:0 12px 36px #23472e12}
-.pilot-gate h1{font-size:26px;margin:8px 0 12px}.pilot-gate form{display:grid;gap:18px}.pilot-gate .field{display:grid;gap:8px}.pilot-gate input{width:100%}.pilot-gate .help{font-size:15px}.pilot-gate [role=alert]{color:#9b2f20;margin:12px 0}
+.pilot-gate h1{font-size:26px;margin:8px 0 12px}.pilot-gate form{display:grid;gap:18px}.pilot-gate .field{display:grid;gap:8px}.pilot-gate input{width:100%}
+.pilot-password{position:relative}
+.pilot-password input{padding-inline-end:54px}
+.pilot-password-toggle{position:absolute;inset-inline-end:3px;top:50%;transform:translateY(-50%);width:44px;height:44px;display:grid;place-items:center;border:0;padding:0;background:transparent}
+.pilot-password-toggle svg{width:22px;height:22px}
+.pilot-password-toggle .pilot-password-slash{display:none}
+.pilot-password-toggle[data-visible="true"] .pilot-password-slash{display:block}.pilot-gate .help{font-size:15px}.pilot-gate [role=alert]{color:#9b2f20;margin:12px 0}
 .pilot-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 24px;background:#edf5ed;border-bottom:1px solid #cfddcf;font-size:15px}.pilot-bar strong{margin-right:auto}.pilot-bar[data-state=pending]{background:#fff4da}.pilot-bar[data-state=error]{background:#fde7df}.pilot-bar [hidden]{display:none}
 .pilot-conflict{position:fixed;z-index:10000;inset:0;background:#183626bb;display:grid;place-items:center;padding:20px}.pilot-conflict[hidden]{display:none}.pilot-conflict>div{max-width:620px;background:white;padding:28px;border-radius:18px}.pilot-conflict .actions{margin-top:20px}
 .shared-panel{border-top:4px solid #849947;margin-bottom:28px}.shared-panel .hotel-grid{margin-top:18px}.shared-panel input[type=search]{width:min(100%,520px)}.shared-panel .hotel-card{padding:18px}.shared-panel h2{margin-top:0}.shared-panel .help{font-size:15px}
@@ -235,7 +241,19 @@ body{height:100vh;height:100dvh;display:grid;grid-template-rows:auto minmax(0,1f
 <section id="pilotGate" class="pilot-gate" aria-labelledby="pilotGateTitle">
 <div class="eyebrow">Áster Conecta · fase de testes</div><h1 id="pilotGateTitle">Entre na sua conta</h1>
 <p>Seus serviços, agenda e financeiro ficam na sua conta. O catálogo de hotéis é compartilhado entre os participantes.</p>
-<form id="pilotLogin"><label class="field">E-mail<input name="email" type="email" autocomplete="username" required></label><label class="field">Senha<input name="password" type="password" autocomplete="current-password" required></label><button class="primary" id="pilotLoginButton" type="submit">Entrar</button></form>
+<form id="pilotLogin"><label class="field">E-mail<input name="email" type="email" autocomplete="username" required></label><div class="field">
+  <label for="pilotPassword">Senha</label>
+  <div class="pilot-password">
+    <input id="pilotPassword" name="password" type="password" autocomplete="current-password" required>
+    <button class="pilot-password-toggle" id="pilotPasswordToggle" type="button" aria-controls="pilotPassword" aria-label="Mostrar senha" title="Mostrar senha" data-visible="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6-10-6-10-6Z"/>
+        <circle cx="12" cy="12" r="2.5"/>
+        <path class="pilot-password-slash" d="m3 3 18 18"/>
+      </svg>
+    </button>
+  </div>
+</div><button class="primary" id="pilotLoginButton" type="submit">Entrar</button></form>
 <p id="pilotLoginError" role="alert" hidden></p><p class="help">Use o usuário criado para o piloto. Sua senha é digitada somente nesta tela de acesso. Ao fechar o navegador, poderá ser necessário entrar novamente.</p>
 <p class="help"><a href="../">Abrir a versão principal</a></p></section>
 <div id="pilotBar" class="pilot-bar no-print" hidden><strong id="pilotState" role="status" aria-live="polite">Conectando…</strong><span id="pilotAccount"></span><button id="pilotRetry" class="small" type="button">Atualizar / sincronizar</button><button id="pilotLogout" class="small" type="button">Sair</button></div>
@@ -436,7 +454,18 @@ function googleAgendaConnect(){toast('Durante o piloto, use a versão principal 
 async function googleAgendaSync(){}
 function googleAgendaRemember(){return persist()}
 function googleAgendaPanel(){return '<section class="panel"><h2>Google Agenda</h2><p>Durante os testes da nuvem, sincronize o Google Agenda pela versão principal. Assim, os lançamentos de teste não alteram seus compromissos reais.</p><a href="../" target="_blank" rel="noopener">Abrir versão principal</a></section>'}
+function setPilotPasswordVisible(visible){
+  $('pilotPassword').type=visible?'text':'password';
+  const toggle=$('pilotPasswordToggle');
+  const label=visible?'Ocultar senha':'Mostrar senha';
+  toggle.dataset.visible=String(visible);
+  toggle.setAttribute('aria-label',label);
+  toggle.title=label;
+}
+
 async function pilotStart(){
+  $('pilotPasswordToggle').onclick=()=>setPilotPasswordVisible($('pilotPassword').type==='password');
+  $('pilotLogin').addEventListener('reset',()=>setPilotPasswordVisible(false));
   pilotMobileLayout();
   window.matchMedia('(max-width:760px)').addEventListener('change',pilotMobileLayout);
   await pilotClaimTab();
@@ -445,6 +474,7 @@ async function pilotStart(){
     try{
       if(!pilot.client)throw Error('Cliente indisponível');
       const email=e.target.elements.email.value.trim(),password=e.target.elements.password.value;
+      setPilotPasswordVisible(false);
       let {data:auth,error}=await pilot.client.auth.signInWithPassword({email,password});
       e.target.elements.password.value='';if(error)throw error;if(!auth.user)throw Error('Conta não encontrada');await pilotOpen(auth.user);
     }catch(err){pilotFailClosed(err)}
