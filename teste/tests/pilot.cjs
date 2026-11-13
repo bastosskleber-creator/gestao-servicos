@@ -72,9 +72,21 @@ await page.evaluate(()=>{data=demoData();persist()});await page.waitForFunction(
 assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('kb-real'))),{production:'untouched'});
 console.log('PASS: login, production isolation, initial cloud insert');
 let beforeReceipts=rows.get(users.a.id).dados.receipts.length;
-await page.evaluate(()=>finishService('s3'));await page.waitForFunction(()=>!pilot.dirty&&!pilot.busy);
-assert.equal(rows.get(users.a.id).dados.services.find(s=>s.id==='s3').status,'done');assert.equal(rows.get(users.a.id).dados.receipts.length,beforeReceipts);assert.ok(rows.get(users.a.id).dados.services.find(s=>s.id==='s3').paymentDue);
-console.log('PASS: service finalization independent of receipts');
+await page.evaluate(()=>finishService('s3'));
+await page.waitForFunction(()=>!pilot.dirty&&!pilot.busy);
+let pendingReport=rows.get(users.a.id).dados.services.find(s=>s.id==='s3');
+assert.equal(pendingReport.status,'reportPending');
+assert.ok(!pendingReport.paymentDue);
+assert.equal(await page.locator('[aria-label="Relatórios pendentes"] [data-id="s3"]').count(),1);
+assert.equal(await page.evaluate(()=>financeData().contracts.some(s=>s.id==='s3')),false);
+await page.click('[aria-label="Relatórios pendentes"] [data-id="s3"]');
+await page.waitForFunction(()=>!pilot.dirty&&!pilot.busy);
+let finalized=rows.get(users.a.id).dados.services.find(s=>s.id==='s3');
+assert.equal(finalized.status,'done');
+assert.equal(finalized.paymentDue,await page.evaluate(()=>shiftDay(today(),20)));
+assert.equal(rows.get(users.a.id).dados.receipts.length,beforeReceipts);
+assert.equal(await page.locator('[aria-label="Relatórios pendentes"] [data-id="s3"]').count(),0);
+console.log('PASS: report pending stays out of finance until confirmation');
 // Two rapid saves while the first network write is in flight must both survive.
 writeDelay=250;
 await page.evaluate(()=>{data.identity={name:'Primeiro nome',role:'Consultor',logo:''};persist();pilotSync()});
